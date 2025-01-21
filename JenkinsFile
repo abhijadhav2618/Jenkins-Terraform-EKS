@@ -1,0 +1,61 @@
+pipeline {
+    agent any
+    environment {
+        AWS_ACCESS_KEY_ID     = credentials('Aws_Access_Key')   // AWS Access Key Credential ID
+        AWS_SECRET_ACCESS_KEY = credentials('Aws_Secret_Key')   // AWS Secret Key Credential ID
+        AWS_DEFAULT_REGION    = "us-east-1"                     // Default AWS Region
+    }
+    stages {
+        stage('Clone the code') {
+            steps {
+                echo 'Cloning the code'
+                checkout scmGit(
+                    branches: [[name: '*/main']],
+                    extensions: [],
+                    userRemoteConfigs: [[url: 'https://github.com/abhijadhav2618/Jenkins-Terraform-EKS.git']]
+                )
+            }
+        }
+        stage('Terraform initialization') {
+            steps {
+                echo 'Terraform initialization'
+                script {
+                    dir('terraform') {
+                        sh 'terraform init'
+                    }
+                }
+            }
+        }
+        stage('Terraform validation') {
+            steps {
+                echo 'Terraform validation'
+                script {
+                    dir('terraform') {
+                        sh 'terraform validate'
+                    }
+                }
+            }
+        }
+        stage('Infrastructure Checks') {
+            steps {
+                echo 'Checks the infrastructure'
+                script {
+                    dir('terraform') {
+                        sh 'terraform plan'
+                    }
+                    input(message:"Approve", ok:"proceed")
+                }
+            }
+        }
+        stage('Create/destroy EKS cluster') {
+            steps {
+                echo 'Terraform Apply'
+                script {
+                    dir('terraform') {
+                        sh 'terraform $action --auto-approve'
+                    }
+                }
+            }
+        }
+    }
+}
